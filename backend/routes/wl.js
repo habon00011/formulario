@@ -4,14 +4,13 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
 
-// --- justo debajo de los requires ---
+// --- Staff permitido por .env ---
 const ALLOWED_STAFF = (process.env.STAFF_IDS || '')
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
 
 function requireStaff(req, res, next) {
-  // si ya tienes auth server-side, úsala; si no, acepta cabecera
   const sid = (req.user?.discord_id) || req.headers['x-staff-id'];
   if (!sid) return res.status(401).json({ error: 'LOGIN_STAFF_REQUERIDO' });
   if (ALLOWED_STAFF.length && !ALLOWED_STAFF.includes(String(sid))) {
@@ -20,7 +19,6 @@ function requireStaff(req, res, next) {
   req.staff_id = String(sid);
   next();
 }
-
 
 /* -------------------- helpers -------------------- */
 
@@ -45,7 +43,7 @@ async function postDiscordEmbed(embed) {
     const f = (typeof fetch !== 'undefined') ? fetch : (await import('node-fetch')).default;
     await f(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json','X-Staff-Id': me.discord_id, },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: 'Revisiones WL', embeds: [embed] }),
     });
   } catch (_) {}
@@ -159,7 +157,7 @@ router.get('/detail/:id', requireStaff, async (req, res) => {
   res.json(rows[0]);
 });
 
-/* -------------------- NUEVO: pendientes -------------------- */
+/* -------------------- pendientes -------------------- */
 
 // GET /wl/pending  (sin cooldown activo)
 router.get('/pending', requireStaff, async (_req, res) => {
@@ -174,23 +172,29 @@ router.get('/pending', requireStaff, async (_req, res) => {
   res.json(rows);
 });
 
-/* -------------------- NUEVO: revisar -------------------- */
+/* -------------------- revisar -------------------- */
 
 // POST /wl/review/:id
-// body = { decisions: {campo: boolean}, notas?: string, aprobar: boolean }
+// body = { decisions: {campo: boolean}, notas?: string }
+// 👆 ya NO exigimos "aprobar" en el body: aprobamos solo si TODAS son true
 router.post('/review/:id', requireStaff, async (req, res) => {
   const id = Number(req.params.id);
-  const { decisions = {}, notas = '', aprobar } = req.body || {};
+  const { decisions = {}, notas = '' } = req.body || {};
   if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID_INVALIDO' });
-  if (typeof aprobar !== 'boolean') return res.status(400).json({ error: 'FALTA_aprobar_true_false' });
 
+  // Calcular puntuación (solo informativo)
   const { score, total } = computeScore(decisions);
   const pct = total ? score/total : 0;
-  const aprobado = aprobar ?? (pct >= 0.7);
-  const reviewerId = req.staff_id; // 👈 usa el id verificado por el middleware
+
+  // ✅ Regla dura: aprobar solo si TODAS las respuestas son true
+  const allCorrect = Object.values(decisions || {}).every(v => v === true);
+  const aprobado = allCorrect;
+
+  const reviewerId = req.staff_id;
 
   try {
     await pool.query('BEGIN');
+
     const cur = await pool.query(
       `SELECT intentos, estado FROM public.wl_solicitudes WHERE id=$1 FOR UPDATE`, [id]
     );
@@ -201,26 +205,57 @@ router.post('/review/:id', requireStaff, async (req, res) => {
     const reachedMax = !aprobado && nextIntentos >= 3;
     const cooldownSql = reachedMax ? `NOW() + INTERVAL '7 days'` : 'NULL';
 
-    const notasJson = { decisiones: decisions, notas, score, total, pct, aprobado, fecha: new Date().toISOString() };
+    const notasJson = {
+      decisiones: decisions,
+      notas,
+      score,
+      total,
+      pct,
+      aprobado,
+      fecha: new Date().toISOString(),
+    };
 
     const upd = await pool.query(
       `
       UPDATE public.wl_solicitudes
-      SET estado=$1, puntuacion_total=$2, notas_internas=$3::jsonb, reviewed_by=$4,
-          intentos=$5, cooldown_until=${cooldownSql}, updated_at=NOW()
-      WHERE id=$6
-      RETURNING id, discord_id, discord_username, estado, intentos, cooldown_until, puntuacion_total
+         SET estado           = $1,
+             puntuacion_total = $2,
+             notas_internas   = $3::jsonb,
+             reviewed_by      = $4,
+             intentos         = $5,
+             cooldown_until   = ${cooldownSql},
+             updated_at       = NOW()
+       WHERE id = $6
+       RETURNING id, discord_id, discord_username, estado, intentos, cooldown_until, puntuacion_total
       `,
       [aprobado ? 'aprobada' : 'rechazada', score, JSON.stringify(notasJson), reviewerId, nextIntentos, id]
     );
 
+    const accion = aprobado ? 'aceptar' : 'rechazar';   // debe existir en tu CHECK
+    const motivo = aprobado ? 'aprobada' : 'rechazada';
+
     await pool.query(
       `INSERT INTO public.wl_logs (solicitud_id, staff_id, accion, motivo, meta)
-       VALUES ($1,$2,'revisar',$3,$4::jsonb)`,
-      [id, reviewerId, aprobado ? 'aprobada' : 'rechazada', JSON.stringify({ score, total, pct, nextIntentos })]
+       VALUES ($1,$2,$3,$4,$5::jsonb)`,
+      [id, reviewerId, accion, motivo, JSON.stringify({ score, total, pct, nextIntentos })]
     );
 
     await pool.query('COMMIT');
+
+    // (Opcional) Webhook Discord
+    // try {
+    //   await postDiscordEmbed({
+    //     title: `WL #${id} ${aprobado ? 'APROBADA ✅' : 'RECHAZADA ❌'}`,
+    //     description: `Usuario: **${upd.rows[0].discord_username}**\nStaff: <@${reviewerId}>`,
+    //     color: aprobado ? 0x2ecc71 : 0xe74c3c,
+    //     fields: [
+    //       { name: 'Puntuación', value: `${score}/${total} (${Math.round(pct*100)}%)`, inline: true },
+    //       { name: 'Intentos', value: String(upd.rows[0].intentos), inline: true },
+    //       upd.rows[0].cooldown_until ? { name: 'Cooldown hasta', value: String(upd.rows[0].cooldown_until), inline: false } : null,
+    //     ].filter(Boolean),
+    //   });
+    // } catch {}
+
     res.json({ ok:true, data: upd.rows[0] });
   } catch (e) {
     await pool.query('ROLLBACK');

@@ -1,0 +1,128 @@
+/* Layout generales del panel */
+.admin-loading { text-align: center; margin-top: 40px; }
+
+.admin-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}
+
+.admin-authCard { max-width: 420px; width: 100%; text-align: center; }
+.admin-authTitle { margin-bottom: 8px; }
+.admin-authText { margin-bottom: 16px; }
+
+/* Header */
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.admin-header-actions { display: flex; gap: 8px; }
+
+/* Grid principal */
+.admin-grid {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 16px;
+}
+
+/* Columna izquierda */
+.admin-search { margin-bottom: 10px; }
+
+.admin-list {
+  max-height: 60vh;
+  overflow: auto;
+  padding: 12px;
+}
+
+.admin-ul { list-style: none; padding: 0; margin: 0; }
+
+.admin-list-item {
+  padding: 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.admin-list-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.admin-list-item-row small { color: var(--muted); }
+
+/* Columna derecha */
+.admin-detail {}
+
+.admin-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.admin-title { margin: 0; }
+
+.admin-title-right { text-align: right; }
+.admin-progress { width: 240px; margin-left: auto; }
+
+/* Bloques de pregunta y respuesta */
+.admin-question { margin-bottom: 12px; }
+.admin-question-label { font-weight: 700; margin-bottom: 8px; }
+
+.answer-box {
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  padding: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-height: 280px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.answer-empty { color: var(--muted); }
+
+.answer-actions { display: flex; gap: 8px; margin-top: 8px; }
+
+/* Botones Correcta/Incorrecta */
+.answer-btn {
+  background: rgba(255,255,255,.08);
+  border: 1px solid var(--stroke);
+}
+.answer-btn.yes.active { background: #1f8b4c; }
+.answer-btn.no.active  { background: #8b1f1f; }
+
+/* Acciones finales y notas */
+.admin-bulk { display: flex; gap: 8px; margin-top: 6px; }
+
+.admin-notes { margin-top: 8px; }
+
+.admin-actions { display: flex; gap: 10px; margin-top: 8px; }
+.admin-msg { margin-left: 10px; }
+
+/* Footer */
+.admin-footer { text-align: center; margin-top: 20px; }
+
+/* Ancho más grande solo para el admin */
+.container-vila.admin-wide {
+  max-width: 1440px;   /* súbelo a 1600px si quieres aún más */
+}
+
+/* (Opcional) ensancha la columna de la lista */
+.admin-grid {
+  grid-template-columns: 320px minmax(0, 1fr); /* antes 360px */
+}
+/* Responsive pequeño: lista más estrecha */
+@media (max-width: 1100px) {
+  .admin-grid { grid-template-columns: 320px minmax(0, 1fr); }
+}
+
+/* Responsive muy pequeño: una columna */
+@media (max-width: 820px) {
+  .admin-grid { grid-template-columns: 1fr; }
+  .admin-progress { width: 160px; }
+}
