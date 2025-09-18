@@ -1,16 +1,10 @@
-/* Layout generales del panel */
-.admin-loading { text-align: center; margin-top: 40px; }
-
-.admin-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 60vh;
+/* ======================
+   Layout general del panel
+   ====================== */
+.admin-loading { 
+  text-align: center; 
+  margin-top: 40px;  
 }
-
-.admin-authCard { max-width: 420px; width: 100%; text-align: center; }
-.admin-authTitle { margin-bottom: 8px; }
-.admin-authText { margin-bottom: 16px; }
 
 /* Header */
 .admin-header {
@@ -18,26 +12,35 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
+  max-width: 1940px; /* ancho máximo del header */
 }
-.admin-header-actions { display: flex; gap: 8px; }
 
-/* Grid principal */
+/* ======================
+   Grid principal
+   ====================== */
 .admin-grid {
   display: grid;
-  grid-template-columns: 360px minmax(0, 1fr);
+  grid-template-columns: 360px minmax(0, 1fr); /* izquierda fija + derecha flexible */
   gap: 16px;
 }
 
-/* Columna izquierda */
+/* ======================
+   Columna izquierda
+   ====================== */
 .admin-search { margin-bottom: 10px; }
 
 .admin-list {
-  max-height: 60vh;
+  max-height: 50vh;
   overflow: auto;
   padding: 12px;
+  margin-top: 12px;
 }
 
-.admin-ul { list-style: none; padding: 0; margin: 0; }
+.admin-ul { 
+  list-style: none; 
+  padding: 0; 
+  margin: 0; 
+}
 
 .admin-list-item {
   padding: 10px;
@@ -53,24 +56,29 @@
 
 .admin-list-item-row small { color: var(--muted); }
 
-/* Columna derecha */
-.admin-detail {}
+/* ======================
+   Columna derecha
+   ====================== */
+.admin-title { margin: 0; }
+.admin-title-right { text-align: right; }
 
-.admin-title-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
+.admin-progress { 
+  width: 240px; 
+  margin-left: auto; 
 }
 
-.admin-title { margin: 0; }
+/* ======================
+   Bloques de preguntas
+   ====================== */
+.admin-question { 
+  margin-bottom: 12px; 
+  width: 100%; /* ocupar todo el ancho disponible */
+}
 
-.admin-title-right { text-align: right; }
-.admin-progress { width: 240px; margin-left: auto; }
-
-/* Bloques de pregunta y respuesta */
-.admin-question { margin-bottom: 12px; }
-.admin-question-label { font-weight: 700; margin-bottom: 8px; }
+.admin-question-label { 
+  font-weight: 700; 
+  margin-bottom: 8px; 
+}
 
 .answer-box {
   background: rgba(255,255,255,.04);
@@ -80,13 +88,17 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;
-  max-height: 280px;
+  max-height: 580px;
   overflow-y: auto;
   overflow-x: hidden;
 }
 .answer-empty { color: var(--muted); }
 
-.answer-actions { display: flex; gap: 8px; margin-top: 8px; }
+.answer-actions { 
+  display: flex; 
+  gap: 8px; 
+  margin-top: 8px;  
+}
 
 /* Botones Correcta/Incorrecta */
 .answer-btn {
@@ -96,33 +108,104 @@
 .answer-btn.yes.active { background: #1f8b4c; }
 .answer-btn.no.active  { background: #8b1f1f; }
 
-/* Acciones finales y notas */
+/* ======================
+   Acciones y notas
+   ====================== */
 .admin-bulk { display: flex; gap: 8px; margin-top: 6px; }
-
 .admin-notes { margin-top: 8px; }
-
 .admin-actions { display: flex; gap: 10px; margin-top: 8px; }
 .admin-msg { margin-left: 10px; }
 
-/* Footer */
-.admin-footer { text-align: center; margin-top: 20px; }
-
-/* Ancho más grande solo para el admin */
-.container-vila.admin-wide {
-  max-width: 1440px;   /* súbelo a 1600px si quieres aún más */
+/* ======================
+   Footer
+   ====================== */
+.admin-footer { 
+  text-align: center; 
+  margin-top: 20px; 
 }
 
-/* (Opcional) ensancha la columna de la lista */
-.admin-grid {
-  grid-template-columns: 320px minmax(0, 1fr); /* antes 360px */
-}
-/* Responsive pequeño: lista más estrecha */
-@media (max-width: 1100px) {
-  .admin-grid { grid-template-columns: 320px minmax(0, 1fr); }
+/* ======================
+   Contenedor principal
+   ====================== */
+.container-vila {
+  max-width: 100%; /* puede crecer hasta ocupar todo el ancho */
 }
 
-/* Responsive muy pequeño: una columna */
-@media (max-width: 820px) {
-  .admin-grid { grid-template-columns: 1fr; }
-  .admin-progress { width: 160px; }
+/* ======================
+   Barra de progreso
+   ====================== */
+.admin-progress-top {
+  margin-bottom: 14px;
+}
+.admin-progress-top .admin-progress {
+  width: 100%;
+  margin-bottom: 6px;
+}
+.admin-progress-caption {
+  display: block;
+}
+
+/* ======================
+   Filas de información (Discord ID, Steam, etc.)
+   ====================== */
+/* Base para todas las filas */
+.form-row {
+  display: grid;
+  grid-template-columns: auto 1fr; /* la etiqueta ocupa su ancho */
+  align-items: center;
+  gap: 10px; /* separación entre etiqueta y contenido */
+}
+
+.form-row__label {
+  color: var(--muted);
+  white-space: nowrap;
+  padding-right: 6px; /* añade aire entre texto y contenido */
+}
+
+.form-row__content {
+  min-width: 0;
+}
+
+/* SOLO aplica a filas con links (Discord ID y Steam) */
+.form-row--link .form-row__content {
+  display: flex;
+  justify-content: flex-start; /* pega el link al inicio */
+  align-items: center;
+  margin-left: -13px;
+}
+
+
+/* ======================
+   Chips (verificación Steam)
+   ====================== */
+.chip-row {
+  display: flex;
+  gap: 6px;              /* espacio entre chips */
+  margin-top: 6px;       /* menos separación vertical */
+  flex-wrap: nowrap;     /* no saltan de línea en escritorio */
+  justify-content: flex-start; /* se alinean al inicio */
+  margin-left: -10px;
+  margin-top: 12px;
+}
+
+.btn.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  border-radius: 9999px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+}
+.btn.chip.active {
+  outline: 2px solid var(--accent);
+  background: rgba(139,92,246,.12);
+  border-color: transparent;
+}
+
+/* Responsive: en móviles los chips bajan de línea */
+@media (max-width: 640px) {
+  .chip-row { flex-wrap: wrap; }
 }

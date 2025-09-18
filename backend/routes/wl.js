@@ -4,6 +4,26 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
 
+// Mapa: clave -> etiqueta legible (para mostrar qué preguntas falló)
+const QUESTION_LABELS = Object.freeze({
+  que_es_rp: '¿Qué es el rol (RP)?',
+  uso_me_do: '¿Para qué sirve /do y /me? Uso correcto.',
+  fair_play: '¿Qué es Fair-play?',
+  pg_y_mg: '¿Qué es PG y MG?',
+  reaccion_robo_policia: 'Robo y llega policía antes: ¿qué haces?',
+  que_harias_vdm: 'Te atropellan (VDM): ¿qué haces?',
+  que_harias_desconecta_secuestro: 'Secuestran y se desconecta: ¿qué haces?',
+  minimo_policias_flecca: '¿Mínimo de policías para Flecca?',
+  como_robarias_base_militar: '¿Cómo robarías armas de la base militar?',
+  caso_pinchan_ruedas: 'Te pinchan ruedas y al /report se lía a tiros: ¿qué está mal?',
+  rol_pensado: '¿Qué rol tienes pensado (Legal/Ilegal/Otro)?',
+  historia_personaje: 'Historia del personaje',
+});
+
+
+// --- Bot de Discord: roles y anuncios ---
+const { setSuspensionRole, setApprovedRole, sendResultMessage } = require('../services/discordBot');
+
 // --- Staff permitido por .env ---
 const ALLOWED_STAFF = (process.env.STAFF_IDS || '')
   .split(',')
@@ -50,7 +70,6 @@ async function postDiscordEmbed(embed) {
 }
 
 /* -------------------- submit -------------------- */
-
 // POST /wl/submit
 router.post('/submit', async (req, res) => {
   try {
@@ -58,7 +77,7 @@ router.post('/submit', async (req, res) => {
 
     const reqd = [
       'discord_id','discord_username',
-      'nombre_y_id_discord','edad_ooc','steam_link',
+      'edad_ooc','steam_link',
       'que_es_rp','uso_me_do','fair_play','pg_y_mg',
       'reaccion_robo_policia','que_harias_vdm','que_harias_desconecta_secuestro',
       'minimo_policias_flecca',
@@ -71,25 +90,39 @@ router.post('/submit', async (req, res) => {
       }
     }
 
-    // Cooldown del último intento (si existe)
-    const { rows: prev } = await pool.query(
-      `SELECT intentos, cooldown_until
-         FROM public.wl_solicitudes
-        WHERE discord_id = $1
-        ORDER BY created_at DESC
-        LIMIT 1`,
-      [p.discord_id]
-    );
+// ---- Límite de 3 rechazos (histórico) usando COUNT, no MAX(intentos)
+const { rows: lim } = await pool.query(
+  `SELECT COUNT(*)::int AS fails
+     FROM public.wl_solicitudes
+    WHERE discord_id = $1 AND estado = 'rechazada'`,
+  [p.discord_id]
+);
+const fails = lim[0]?.fails ?? 0;
+if (fails >= 3) {
+  return res.status(403).json({ error: 'LIMITE_INTENTOS' });
+}
 
-    if (prev[0]?.cooldown_until && new Date(prev[0].cooldown_until) > new Date()) {
-      return res.status(429).json({
-        error: 'COOLDOWN_ACTIVO',
-        until: prev[0].cooldown_until,
-        intentos: prev[0].intentos ?? 0
-      });
-    }
+// ---- Bloqueo por COOLDOWN (si el último review impuso espera)
+const { rows: last } = await pool.query(
+  `SELECT cooldown_until
+     FROM public.wl_solicitudes
+    WHERE discord_id = $1
+    ORDER BY created_at DESC
+    LIMIT 1`,
+  [p.discord_id]
+);
+if (last[0]?.cooldown_until && new Date(last[0].cooldown_until) > new Date()) {
+  return res.status(429).json({
+    error: 'COOLDOWN_ACTIVO',
+    until: last[0].cooldown_until,
+  });
+}
+
 
     const minFlecca = Number.isFinite(+p.minimo_policias_flecca) ? +p.minimo_policias_flecca : 0;
+
+    // ✅ Derivar en servidor (ya no viene del formulario)
+    const nombreId = `${p.discord_username} | ${p.discord_id}`;
 
     const ins = await pool.query(
       `
@@ -111,7 +144,7 @@ router.post('/submit', async (req, res) => {
       `,
       [
         p.discord_id, p.discord_username, p.discord_avatar || null, p.is_in_guild || false,
-        p.nombre_y_id_discord, p.edad_ooc, p.steam_link,
+        nombreId, p.edad_ooc, p.steam_link,
         p.que_es_rp, p.uso_me_do, p.fair_play, p.pg_y_mg,
         p.reaccion_robo_policia, p.que_harias_vdm, p.que_harias_desconecta_secuestro, minFlecca,
         p.como_robarias_base_militar, p.caso_pinchan_ruedas, p.rol_pensado, p.tiempo_roleando, p.historia_personaje,
@@ -121,7 +154,6 @@ router.post('/submit', async (req, res) => {
 
     const id = ins.rows[0].id;
 
-    // Log auditoría
     await pool.query(
       `INSERT INTO public.wl_logs (solicitud_id, staff_id, accion, motivo, meta)
        VALUES ($1,$2,'enviar',NULL,$3::jsonb)`,
@@ -134,6 +166,8 @@ router.post('/submit', async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+
+
 
 /* -------------------- list & detail -------------------- */
 
@@ -175,34 +209,78 @@ router.get('/pending', requireStaff, async (_req, res) => {
 /* -------------------- revisar -------------------- */
 
 // POST /wl/review/:id
-// body = { decisions: {campo: boolean}, notas?: string }
-// 👆 ya NO exigimos "aprobar" en el body: aprobamos solo si TODAS son true
+// body = { decisions: {campo:boolean}, notas?: string }
 router.post('/review/:id', requireStaff, async (req, res) => {
   const id = Number(req.params.id);
-  const { decisions = {}, notas = '' } = req.body || {};
-  if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID_INVALIDO' });
+  const { decisions = {}, notas = '', steam_check: rawSteamCheck } = req.body || {};
+  if (!Number.isInteger(id)) {
+    return res.status(400).json({ error: 'ID_INVALIDO' });
+  }
 
-  // Calcular puntuación (solo informativo)
-  const { score, total } = computeScore(decisions);
-  const pct = total ? score/total : 0;
+  const allowedSteam = new Set(['ok','no_hours','private',null,undefined]);
+  const steam_check = allowedSteam.has(rawSteamCheck) ? (rawSteamCheck || null) : null;
 
-  // ✅ Regla dura: aprobar solo si TODAS las respuestas son true
-  const allCorrect = Object.values(decisions || {}).every(v => v === true);
-  const aprobado = allCorrect;
+
+  // Puntuación solo informativa
+  const entries = Object.values(decisions || {});
+  const total = entries.length;
+  const score = entries.filter(v => v === true).length;
+  const pct = total ? score / total : 0;
+
+  // Regla: aprobar SOLO si todas están correctas
+  const allCorrect = entries.every(v => v === true);
+  const aprobado = allCorrect && steam_check === 'ok';
 
   const reviewerId = req.staff_id;
 
   try {
     await pool.query('BEGIN');
 
+    // Cargamos la solicitud y bloqueamos la fila
     const cur = await pool.query(
-      `SELECT intentos, estado FROM public.wl_solicitudes WHERE id=$1 FOR UPDATE`, [id]
+      `SELECT id, discord_id, discord_username, estado, intentos
+         FROM public.wl_solicitudes
+        WHERE id = $1
+        FOR UPDATE`,
+      [id]
     );
-    if (!cur.rows[0]) { await pool.query('ROLLBACK'); return res.status(404).json({ error: 'NOT_FOUND' }); }
-    if (cur.rows[0].estado !== 'pendiente') { await pool.query('ROLLBACK'); return res.status(409).json({ error: 'YA_REVISADA' }); }
+    const row = cur.rows[0];
+    if (!row) {
+      await pool.query('ROLLBACK');
+      return res.status(404).json({ error: 'NOT_FOUND' });
+    }
+    if (row.estado !== 'pendiente') {
+      await pool.query('ROLLBACK');
+      return res.status(409).json({ error: 'YA_REVISADA' });
+    }
 
-    const nextIntentos = aprobado ? cur.rows[0].intentos : cur.rows[0].intentos + 1;
-    const reachedMax = !aprobado && nextIntentos >= 3;
+    // === ACUMULADO DE RECHAZOS DEL USUARIO ===
+    const cnt = await pool.query(
+      `SELECT COUNT(*)::int AS fails
+         FROM public.wl_solicitudes
+        WHERE discord_id = $1 AND estado = 'rechazada'`,
+      [row.discord_id]
+    );
+    const failsPrev  = cnt.rows[0]?.fails || 0;        // antes de esta revisión
+    const failsAfter = aprobado ? failsPrev : failsPrev + 1; // después de esta revisión
+
+
+    const STEAM_REASON = {
+  no_hours: 'Horas de FiveM insuficientes',
+  private: 'Steam no público',
+};
+
+let rejectReason = null;
+if (!aprobado) {
+  if (steam_check && steam_check !== 'ok') {
+    rejectReason = STEAM_REASON[steam_check] || 'Steam no verificado';
+  } else if (!allCorrect) {
+    rejectReason = 'Respuestas incorrectas';
+  }
+}
+
+
+    const reachedMax = !aprobado && failsAfter >= 3;
     const cooldownSql = reachedMax ? `NOW() + INTERVAL '7 days'` : 'NULL';
 
     const notasJson = {
@@ -213,8 +291,10 @@ router.post('/review/:id', requireStaff, async (req, res) => {
       pct,
       aprobado,
       fecha: new Date().toISOString(),
+      steam_check,
     };
 
+    // Guardamos la revisión y dejamos 'intentos' = ACUMULADO
     const upd = await pool.query(
       `
       UPDATE public.wl_solicitudes
@@ -222,41 +302,69 @@ router.post('/review/:id', requireStaff, async (req, res) => {
              puntuacion_total = $2,
              notas_internas   = $3::jsonb,
              reviewed_by      = $4,
-             intentos         = $5,
+             intentos         = $5,                  -- ACUMULADO
              cooldown_until   = ${cooldownSql},
              updated_at       = NOW()
        WHERE id = $6
        RETURNING id, discord_id, discord_username, estado, intentos, cooldown_until, puntuacion_total
       `,
-      [aprobado ? 'aprobada' : 'rechazada', score, JSON.stringify(notasJson), reviewerId, nextIntentos, id]
+      [
+        (aprobado ? 'aprobada' : 'rechazada'),
+        score,
+        JSON.stringify(notasJson),
+        reviewerId,
+        failsAfter, // 👈 acumulado
+        id
+      ]
     );
 
-    const accion = aprobado ? 'aceptar' : 'rechazar';   // debe existir en tu CHECK
+    // Log
+    const accion = aprobado ? 'aceptar' : 'rechazar';
     const motivo = aprobado ? 'aprobada' : 'rechazada';
-
     await pool.query(
       `INSERT INTO public.wl_logs (solicitud_id, staff_id, accion, motivo, meta)
        VALUES ($1,$2,$3,$4,$5::jsonb)`,
-      [id, reviewerId, accion, motivo, JSON.stringify({ score, total, pct, nextIntentos })]
+      [id, reviewerId, accion, motivo, JSON.stringify({ score, total, pct, failsAfter })]
     );
 
     await pool.query('COMMIT');
 
-    // (Opcional) Webhook Discord
-    // try {
-    //   await postDiscordEmbed({
-    //     title: `WL #${id} ${aprobado ? 'APROBADA ✅' : 'RECHAZADA ❌'}`,
-    //     description: `Usuario: **${upd.rows[0].discord_username}**\nStaff: <@${reviewerId}>`,
-    //     color: aprobado ? 0x2ecc71 : 0xe74c3c,
-    //     fields: [
-    //       { name: 'Puntuación', value: `${score}/${total} (${Math.round(pct*100)}%)`, inline: true },
-    //       { name: 'Intentos', value: String(upd.rows[0].intentos), inline: true },
-    //       upd.rows[0].cooldown_until ? { name: 'Cooldown hasta', value: String(upd.rows[0].cooldown_until), inline: false } : null,
-    //     ].filter(Boolean),
-    //   });
-    // } catch {}
+ const wlRow = upd.rows[0]; // fila retornada por el UPDATE
 
-    res.json({ ok:true, data: upd.rows[0] });
+(async () => {
+  try {
+    const userId   = String(wlRow.discord_id);
+    const username = wlRow.discord_username;
+
+    // intentos GUARDADOS tras esta revisión
+    const intentosActuales  = Number(wlRow.intentos) || 0;
+    const intentosClamped   = Math.min(intentosActuales, 3);  // 1..3
+    const intentosRestantes = Math.max(3 - intentosClamped, 0);
+
+    if (aprobado) {
+      await setApprovedRole(userId);               // da WL y quita suspendidos
+    } else {
+      await setSuspensionRole(userId, intentosClamped); // pone WL suspendida 1/2/3
+    }
+
+    await sendResultMessage({
+      approved: aprobado,
+      wlId: id,
+      userId,
+      username,
+      reviewerId,
+      attemptsUsed: intentosClamped,
+      rejectReason,
+    });
+  } catch (e) {
+    console.error('[discordBot] error', e);
+  }
+})();
+
+return res.json({ ok: true, data: wlRow });
+
+    // ------------------------------------------------------------
+
   } catch (e) {
     await pool.query('ROLLBACK');
     console.error(e);
@@ -264,4 +372,6 @@ router.post('/review/:id', requireStaff, async (req, res) => {
   }
 });
 
+
 module.exports = router;
+

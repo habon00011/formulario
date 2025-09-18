@@ -9,7 +9,6 @@ const LOGIN_URL = `${API}/auth/discord/login?redirect=${encodeURIComponent(
 
 // --- Reglas de validación (auto-contenidas) ---
 const RULES = {
-  nombre_y_id_discord: (v) => req(v),
   edad_ooc: (v) => req(v) || numRange(v, 18, 80, "Edad inválida (18–80)"),
   steam_link: (v) => req(v) || urlSteam(v),
 
@@ -68,7 +67,6 @@ export default function App() {
     discord_avatar: null,
     is_in_guild: false,
 
-    nombre_y_id_discord: "",
     edad_ooc: "",
     steam_link: "",
     que_es_rp: "",
@@ -98,7 +96,6 @@ export default function App() {
             discord_username: d.user.discord_username,
             discord_avatar: d.user.discord_avatar,
             is_in_guild: d.user.is_in_guild,
-            nombre_y_id_discord: `${d.user.discord_username} | ${d.user.discord_id}`,
           }));
         }
       })
@@ -117,7 +114,6 @@ export default function App() {
   };
 
   const required = [
-    "nombre_y_id_discord",
     "edad_ooc",
     "steam_link",
     "que_es_rp",
@@ -142,6 +138,8 @@ export default function App() {
     ).length;
     return Math.round((filled / required.length) * 100);
   }, [form]);
+
+  const scrollTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -179,7 +177,14 @@ export default function App() {
 
       const data = await submitWL(form);
 
-      // 👇 NUEVO: manejar cooldown devuelto por el server
+      if (data?.error === "LIMITE_INTENTOS") {
+        setErr("Has alcanzado el límite de 3 intentos. Contacta con el staff.");
+        setLoading(false);
+        scrollTop();
+        return;
+      }
+
+      // NUEVO: manejar cooldown devuelto por el server
       if (data?.error === "COOLDOWN_ACTIVO") {
         const until = data.until ? new Date(data.until) : null;
         setErr(
@@ -190,6 +195,7 @@ export default function App() {
           }`
         );
         setLoading(false);
+        scrollTop();
         return;
       }
 
@@ -204,7 +210,6 @@ export default function App() {
       // Limpia solo respuestas, mantiene identidad de Discord
       setForm((f) => ({
         ...f,
-        nombre_y_id_discord: `${f.discord_username} | ${f.discord_id}`,
         edad_ooc: "",
         steam_link: "",
         que_es_rp: "",
@@ -223,13 +228,63 @@ export default function App() {
       }));
       setTouched({});
       setErrors({});
+      scrollTop();
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e) {
       setErr(e.message || "Error enviando WL");
+      scrollTop();
     } finally {
       setLoading(false);
+      scrollTop();
     }
   };
+
+  const clearForm = () => {
+  // Limpia solo las respuestas y deja la identidad tal como está (o la de `me`)
+  setForm((f) => ({
+    ...f,
+    // identidad (conserva si ya está logueado)
+    discord_id: me?.discord_id ?? f.discord_id ?? "",
+    discord_username: me?.discord_username ?? f.discord_username ?? "",
+    discord_avatar: me?.discord_avatar ?? f.discord_avatar ?? null,
+    is_in_guild: !!(me?.is_in_guild ?? f.is_in_guild),
+
+    // campo derivado
+    nombre_y_id_discord: me
+      ? `${me.discord_username} | ${me.discord_id}`
+      : `${f.discord_username} | ${f.discord_id}`,
+
+    // respuestas a vaciar
+    edad_ooc: "",
+    steam_link: "",
+    que_es_rp: "",
+    uso_me_do: "",
+    fair_play: "",
+    pg_y_mg: "",
+    como_robarias_base_militar: "",
+    caso_pinchan_ruedas: "",
+    rol_pensado: "",
+    tiempo_roleando: "",
+    historia_personaje: "",
+    reaccion_robo_policia: "",
+    que_harias_vdm: "",
+    que_harias_desconecta_secuestro: "",
+    minimo_policias_flecca: "",
+  }));
+
+  // limpia validaciones y banners
+  setTouched({});
+  setErrors({});
+  setOkId(null);
+  setErr("");
+
+  // borra borrador
+  localStorage.removeItem("wl_draft");
+
+  // sube arriba para que se vea el estado limpio
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
+
 
   useEffect(() => {
     const raw = localStorage.getItem("wl_draft");
@@ -339,7 +394,7 @@ export default function App() {
                   }}
                   className="btn btn-primary"
                 >
-                  Entrar con Discord
+                  Vehincular con Discord
                 </button>
               )}
             </div>
@@ -417,22 +472,6 @@ export default function App() {
             {/* Generales */}
             <div className="card section">
               <h2>Preguntas generales</h2>
-
-              <Field
-                name="nombre_y_id_discord"
-                label="Nombre & ID de usuario en Discord"
-                error={
-                  touched.nombre_y_id_discord && errors.nombre_y_id_discord
-                }
-                onBlur={onBlur("nombre_y_id_discord")}
-              >
-                <input
-                  className="input"
-                  placeholder=" "
-                  value={form.nombre_y_id_discord}
-                  onChange={update("nombre_y_id_discord")}
-                />
-              </Field>
 
               <div className="grid-2">
                 <Field
@@ -721,7 +760,7 @@ export default function App() {
               </button>
               <button
                 type="button"
-                onClick={() => window.location.reload()}
+                onClick= {clearForm}
                 className="btn btn-ghost"
               >
                 Limpiar
