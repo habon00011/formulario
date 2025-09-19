@@ -209,3 +209,8 @@
 @media (max-width: 640px) {
   .chip-row { flex-wrap: wrap; }
 }
+
+.container-vila .shell {
+  width: 100% !important;
+  max-width: 100px !important; /* o lo que necesites */
+}

@@ -37,7 +37,7 @@ const QUESTIONS = [
   },
   { key: "minimo_policias_flecca", label: "¿Mínimo de policías para Flecca?" },
   { key: "rol_pensado", label: "¿Qué rol tienes pensado (Legal/Ilegal/Otro)?" },
-  { key: "tiempo_roleando", label: "Tiempo roleando" },
+    { key: "tiempo_roleando", label: "Tiempo roleando" },
   { key: "historia_personaje", label: "Historia del personaje" },
   
 ];
