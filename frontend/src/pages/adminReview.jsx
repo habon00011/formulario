@@ -401,6 +401,10 @@ export default function AdminReview() {
                   WL #{sel?.id ?? "—"} — {sel?.discord_username ?? "—"}
                 </h2>
 
+                <p>
+                  <strong>Intentos usados</strong>: {sel.intentos_usados} / 3
+                </p>
+
                 {/* Discord ID clicable */}
                 <div className="form-row form-row--link">
                   <div className="form-row__label">Discord ID:</div>

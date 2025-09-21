@@ -217,11 +217,26 @@ router.get('/list', requireStaff, async (_req, res) => {
 // GET /wl/detail/:id
 router.get('/detail/:id', requireStaff, async (req, res) => {
   const { rows } = await pool.query(
-    `SELECT * FROM public.wl_solicitudes WHERE id=$1`, [req.params.id]
+    `SELECT * FROM public.wl_solicitudes WHERE id=$1`, 
+    [req.params.id]
   );
-  if (!rows[0]) return res.status(404).json({ error:'NOT_FOUND' });
-  res.json(rows[0]);
+  if (!rows[0]) return res.status(404).json({ error: 'NOT_FOUND' });
+
+  const solicitud = rows[0];
+
+  // 🔹 Calcular rechazos acumulados del usuario
+  const { rows: fails } = await pool.query(
+    `SELECT COUNT(*)::int AS total 
+       FROM public.wl_solicitudes 
+      WHERE discord_id = $1 AND estado = 'rechazada'`,
+    [solicitud.discord_id]
+  );
+
+  solicitud.intentos_usados = fails[0]?.total || 0;
+
+  res.json(solicitud);
 });
+
 
 /* -------------------- pendientes -------------------- */
 
