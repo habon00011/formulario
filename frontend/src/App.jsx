@@ -4,7 +4,7 @@ import "./App.css";
 
 const API = import.meta.env.VITE_API_URL;
 const LOGIN_URL = `${API}/auth/discord/login?redirect=${encodeURIComponent(
-  "/"
+  "/wl/"
 )}`;
 
 // --- Reglas de validación (auto-contenidas) ---
