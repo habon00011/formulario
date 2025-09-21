@@ -34,7 +34,7 @@ function sanitizeRedirect(v, fallback = '/') {
 
 const cookieOpts = {
   httpOnly: true,
-  sameSite: 'lax',
+  sameSite: 'none',
   secure: true, // ⚠️ en producción con HTTPS => true
   maxAge: 1000 * 60 * 60 * 24 * 7, // 7 días
 };
