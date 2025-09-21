@@ -139,7 +139,7 @@ export default function App() {
     return Math.round((filled / required.length) * 100);
   }, [form]);
 
-  const scrollTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+  const scrollTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -177,6 +177,8 @@ export default function App() {
 
       const data = await submitWL(form);
 
+      // Error si has superado el cooldown(Los intentos)
+
       if (data?.error === "LIMITE_INTENTOS") {
         setErr("Has alcanzado el límite de 3 intentos. Contacta con el staff.");
         setLoading(false);
@@ -184,7 +186,6 @@ export default function App() {
         return;
       }
 
-      // NUEVO: manejar cooldown devuelto por el server
       if (data?.error === "COOLDOWN_ACTIVO") {
         const until = data.until ? new Date(data.until) : null;
         setErr(
@@ -194,6 +195,34 @@ export default function App() {
               : ""
           }`
         );
+        setLoading(false);
+        scrollTop();
+        return;
+      }
+
+      // Error si no estas en el discord
+      if (data?.error === "NO_GUILD_MEMBER") {
+        setErr(
+          <div className="discord-error">
+            <strong> No estás en el Discord</strong>
+            <p>Para poder enviar tu Whitelist debes unirte al servidor.</p>
+            <a
+              href={data?.invite}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="discord-join-btn"
+            >
+              👉 Unirme al Discord
+            </a>
+          </div>
+        );
+        setLoading(false);
+        scrollTop();
+        return;
+      }
+
+      if (data?.error === "YA_ENVIADA") {
+        setErr("Ya has enviado una Whitelist. Debes esperar a que sea revisada antes de poder enviar otra.");
         setLoading(false);
         scrollTop();
         return;
@@ -240,51 +269,50 @@ export default function App() {
   };
 
   const clearForm = () => {
-  // Limpia solo las respuestas y deja la identidad tal como está (o la de `me`)
-  setForm((f) => ({
-    ...f,
-    // identidad (conserva si ya está logueado)
-    discord_id: me?.discord_id ?? f.discord_id ?? "",
-    discord_username: me?.discord_username ?? f.discord_username ?? "",
-    discord_avatar: me?.discord_avatar ?? f.discord_avatar ?? null,
-    is_in_guild: !!(me?.is_in_guild ?? f.is_in_guild),
+    // Limpia solo las respuestas y deja la identidad tal como está (o la de `me`)
+    setForm((f) => ({
+      ...f,
+      // identidad (conserva si ya está logueado)
+      discord_id: me?.discord_id ?? f.discord_id ?? "",
+      discord_username: me?.discord_username ?? f.discord_username ?? "",
+      discord_avatar: me?.discord_avatar ?? f.discord_avatar ?? null,
+      is_in_guild: !!(me?.is_in_guild ?? f.is_in_guild),
 
-    // campo derivado
-    nombre_y_id_discord: me
-      ? `${me.discord_username} | ${me.discord_id}`
-      : `${f.discord_username} | ${f.discord_id}`,
+      // campo derivado
+      nombre_y_id_discord: me
+        ? `${me.discord_username} | ${me.discord_id}`
+        : `${f.discord_username} | ${f.discord_id}`,
 
-    // respuestas a vaciar
-    edad_ooc: "",
-    steam_link: "",
-    que_es_rp: "",
-    uso_me_do: "",
-    fair_play: "",
-    pg_y_mg: "",
-    como_robarias_base_militar: "",
-    caso_pinchan_ruedas: "",
-    rol_pensado: "",
-    tiempo_roleando: "",
-    historia_personaje: "",
-    reaccion_robo_policia: "",
-    que_harias_vdm: "",
-    que_harias_desconecta_secuestro: "",
-    minimo_policias_flecca: "",
-  }));
+      // respuestas a vaciar
+      edad_ooc: "",
+      steam_link: "",
+      que_es_rp: "",
+      uso_me_do: "",
+      fair_play: "",
+      pg_y_mg: "",
+      como_robarias_base_militar: "",
+      caso_pinchan_ruedas: "",
+      rol_pensado: "",
+      tiempo_roleando: "",
+      historia_personaje: "",
+      reaccion_robo_policia: "",
+      que_harias_vdm: "",
+      que_harias_desconecta_secuestro: "",
+      minimo_policias_flecca: "",
+    }));
 
-  // limpia validaciones y banners
-  setTouched({});
-  setErrors({});
-  setOkId(null);
-  setErr("");
+    // limpia validaciones y banners
+    setTouched({});
+    setErrors({});
+    setOkId(null);
+    setErr("");
 
-  // borra borrador
-  localStorage.removeItem("wl_draft");
+    // borra borrador
+    localStorage.removeItem("wl_draft");
 
-  // sube arriba para que se vea el estado limpio
-  window.scrollTo({ top: 0, behavior: "smooth" });
-};
-
+    // sube arriba para que se vea el estado limpio
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   useEffect(() => {
     const raw = localStorage.getItem("wl_draft");
@@ -463,8 +491,7 @@ export default function App() {
                   />
                 </Field>
               </div>
-              <p className="sub" style={{ marginTop: 10 }}>
-                {" "}
+              <p className="sub" style={{ marginTop: 10, marginBottom: -8 }}>
                 * Se autocompleta con tu cuenta de Discord.
               </p>
             </div>
@@ -760,7 +787,7 @@ export default function App() {
               </button>
               <button
                 type="button"
-                onClick= {clearForm}
+                onClick={clearForm}
                 className="btn btn-ghost"
               >
                 Limpiar

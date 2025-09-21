@@ -231,6 +231,46 @@ export default function AdminAllWL() {
                   </div>
                 </div>
 
+                {/* Verificación de Steam */}
+                <div className="form-row">
+                  <div className="form-row__label">Verificación:</div>
+                  <div className="form-row__content">
+                    {(() => {
+                      let notasInternas = null;
+                      if (selected?.notas_internas) {
+                        try {
+                          notasInternas =
+                            typeof selected.notas_internas === "string"
+                              ? JSON.parse(selected.notas_internas)
+                              : selected.notas_internas;
+                        } catch {
+                          notasInternas = null;
+                        }
+                      }
+                      const steamCheck = notasInternas?.steam_check;
+
+                      if (steamCheck === "ok")
+                        return (
+                          <span className="chip chip-steam ok">
+                            Steam OK (≥50h)
+                          </span>
+                        );
+                      if (steamCheck === "no_hours")
+                        return (
+                          <span className="chip chip-steam warn">Sin 50h</span>
+                        );
+                      if (steamCheck === "private")
+                        return (
+                          <span className="chip chip-steam private">
+                            No público
+                          </span>
+                        );
+
+                      return <span className="muted">(sin verificar)</span>;
+                    })()}
+                  </div>
+                </div>
+
                 {/* Preguntas */}
                 <div className="admin-questions">
                   {QUESTIONS.map((q) => {

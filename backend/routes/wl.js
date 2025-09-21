@@ -3,6 +3,12 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
+const GUILD_ID = process.env.DISCORD_GUILD_ID;
+
+// --- Bot de Discord: roles y anuncios ---
+const { client, setSuspensionRole, setApprovedRole, sendResultMessage } = require('../services/discordBot');
+
+
 
 // Mapa: clave -> etiqueta legible (para mostrar qué preguntas falló)
 const QUESTION_LABELS = Object.freeze({
@@ -20,9 +26,6 @@ const QUESTION_LABELS = Object.freeze({
   historia_personaje: 'Historia del personaje',
 });
 
-
-// --- Bot de Discord: roles y anuncios ---
-const { setSuspensionRole, setApprovedRole, sendResultMessage } = require('../services/discordBot');
 
 // --- Staff permitido por .env ---
 const ALLOWED_STAFF = (process.env.STAFF_IDS || '')
@@ -90,6 +93,24 @@ router.post('/submit', async (req, res) => {
       }
     }
 
+    // Verifica si el miembro está en el Discord
+    try {
+      const guild = await client.guilds.fetch(GUILD_ID);
+      const member = await guild.members.fetch(p.discord_id).catch(() => null);
+      if (!member) {
+        return res.status(403).json({
+          error: "NO_GUILD_MEMBER",
+          message: "Debes estar en el Discord para enviar la whitelist.",
+          invite: process.env.DISCORD_INVITE_URL
+
+        });
+      }
+      p.is_in_guild = true; // guardamos que sí estaba en el Discord
+    } catch (err) {
+      console.error("Error verificando miembro de Discord:", err);
+      return res.status(500).json({ error: "DISCORD_CHECK_FAILED" });
+    }
+
 // ---- Límite de 3 rechazos (histórico) usando COUNT, no MAX(intentos)
 const { rows: lim } = await pool.query(
   `SELECT COUNT(*)::int AS fails
@@ -118,6 +139,19 @@ if (last[0]?.cooldown_until && new Date(last[0].cooldown_until) > new Date()) {
   });
 }
 
+//Verifica si el miembro ya tiene una solicitud pendiente.
+const { rows: pend } = await pool.query(
+  `SELECT id FROM public.wl_solicitudes
+   WHERE discord_id = $1 AND estado = 'pendiente'
+   LIMIT 1`,
+  [p.discord_id]
+);
+if (pend.length > 0) {
+  return res.status(409).json({
+    error: "YA_ENVIADA",
+    message: "Ya tienes una whitelist pendiente de revisión."
+  });
+}
 
     const minFlecca = Number.isFinite(+p.minimo_policias_flecca) ? +p.minimo_policias_flecca : 0;
 
@@ -166,8 +200,6 @@ if (last[0]?.cooldown_until && new Date(last[0].cooldown_until) > new Date()) {
     res.status(500).json({ error: e.message });
   }
 });
-
-
 
 /* -------------------- list & detail -------------------- */
 
@@ -378,7 +410,10 @@ return res.json({ ok: true, data: wlRow });
 router.get("/all", requireStaff, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT * FROM public.wl_solicitudes ORDER BY created_at DESC`
+      `SELECT * 
+       FROM public.wl_solicitudes 
+       ORDER BY created_at DESC 
+       LIMIT 50`
     );
     res.json(rows);
   } catch (e) {
@@ -386,6 +421,7 @@ router.get("/all", requireStaff, async (req, res) => {
     res.status(500).json({ error: "Error cargando whitelists" });
   }
 });
+
 
 
 module.exports = router;

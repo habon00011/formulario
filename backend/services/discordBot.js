@@ -1,8 +1,8 @@
 // services/discordBot.js
 const { Client, GatewayIntentBits, Partials } = require('discord.js');
 
-const TOKEN             = process.env.DISCORD_BOT_TOKEN;
-const GUILD_ID          = process.env.DISCORD_GUILD_ID;
+const TOKEN = process.env.DISCORD_BOT_TOKEN;
+const GUILD_ID = process.env.DISCORD_GUILD_ID;
 const RESULT_CHANNEL_ID = process.env.DISCORD_RESULT_CHANNEL_ID;
 
 const ROLE_WL_OK = process.env.DISCORD_ROLE_WL_APROBADA;
@@ -73,7 +73,6 @@ async function setSuspensionRole(userId, intentoNum /* 1..3 */) {
 async function sendResultMessage({
   userId,
   approved,
-  // compat viejos nombres
   attemptsUsed = 0,
   triesDone,
   rejectReason, // motivo de rechazo opcional (p.ej. "Horas de FiveM insuficientes" | "Steam no público" | "Respuestas incorrectas")
@@ -96,10 +95,10 @@ const left = Math.max(0, MAX_ATTEMPTS - used);
     let content;
     if (approved) {
       // ✅ Aprobado
-      content = `🎉 **¡Felicidades, <@${userId}>! Has aprobado/a la Whitelist de VilanovaCity. ¡Te esperamos en la ciudad!**`;
+      content = `🎉 **¡Felicidades, <@${userId}>! Has aprobado la Whitelist de VilanovaCity. ¡Te esperamos en la ciudad!**`;
     } else {
       // ❌ Rechazado
-      content = `❌ Has suspendido/a la Whitelist <@${userId}> — Intentos restantes: \`${left}\``;
+      content = `❌ Has suspendido la Whitelist <@${userId}> — Intentos restantes: \`${left}\``;
       if (rejectReason) {
         content += ` — Motivo: ${rejectReason}`;
       }
@@ -115,4 +114,4 @@ const left = Math.max(0, MAX_ATTEMPTS - used);
   }
 }
 
-module.exports = { setSuspensionRole, setApprovedRole, sendResultMessage };
+module.exports = { client, setSuspensionRole, setApprovedRole, sendResultMessage };
