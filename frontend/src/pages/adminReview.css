@@ -214,3 +214,14 @@
   width: 100% !important;
   max-width: 100px !important; /* o lo que necesites */
 }
+
+.answer-correct {
+  border-left: 6px solid #4caf50; /* verde */
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.answer-wrong {
+  border-left: 6px solid #f44336; /* rojo */
+  background: rgba(244, 67, 54, 0.1);
+}
+

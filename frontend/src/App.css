@@ -222,7 +222,7 @@ html, body, #root {
 /* Contenedor de la página */
 .shell{
   width: min(1200px, 92vw) !important;
-  max-width: 1000px !important;
+  max-width: 950px !important;
   margin: 42px auto 80px !important;
   position: static !important;
   transform: none !important;

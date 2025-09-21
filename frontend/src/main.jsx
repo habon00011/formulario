@@ -5,11 +5,13 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
 import './index.css';
 import App from './App.jsx';
-import AdminReview from './pages/adminReview.jsx'; // 👈 crea este archivo con el panel
+import AdminReview from './pages/adminReview.jsx';
+import AdminAllWL from './pages/allWL/AdminAllWL.jsx'; // 👈 importa el panel de todas las WL
 
 const router = createBrowserRouter([
-  { path: '/', element: <App /> },         // formulario WL
-  { path: '/admin', element: <AdminReview /> }, // panel de corrección
+  { path: '/', element: <App /> },               // formulario WL
+  { path: '/admin', element: <AdminReview /> },  // panel de corrección
+  { path: '/admin/all', element: <AdminAllWL /> } // 👈 panel de TODAS las WL
 ]);
 
 ReactDOM.createRoot(document.getElementById('root')).render(

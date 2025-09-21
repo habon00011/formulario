@@ -37,9 +37,8 @@ const QUESTIONS = [
   },
   { key: "minimo_policias_flecca", label: "¿Mínimo de policías para Flecca?" },
   { key: "rol_pensado", label: "¿Qué rol tienes pensado (Legal/Ilegal/Otro)?" },
-    { key: "tiempo_roleando", label: "Tiempo roleando" },
+  { key: "tiempo_roleando", label: "Tiempo roleando" },
   { key: "historia_personaje", label: "Historia del personaje" },
-  
 ];
 
 function SteamLinkChip({ url }) {
@@ -319,6 +318,13 @@ export default function AdminReview() {
           <div className="admin-header-actions">
             <button className="btn btn-ghost" onClick={loadPending}>
               Refrescar
+            </button>
+
+            <button
+              className="btn btn-ghost"
+              onClick={() => (window.location.href = "/admin/all")}
+            >
+              Ver todas las WL
             </button>
           </div>
         </header>

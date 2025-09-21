@@ -373,5 +373,20 @@ return res.json({ ok: true, data: wlRow });
 });
 
 
+
+// Todas las whitelist (solo staff)
+router.get("/all", requireStaff, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM public.wl_solicitudes ORDER BY created_at DESC`
+    );
+    res.json(rows);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Error cargando whitelists" });
+  }
+});
+
+
 module.exports = router;
 
