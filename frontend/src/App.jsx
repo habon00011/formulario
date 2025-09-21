@@ -417,7 +417,7 @@ export default function App() {
                 <button
                   onClick={() => {
                     window.location.href = `${API}/auth/discord/login?redirect=${encodeURIComponent(
-                      "/"
+                      "/wl/"
                     )}`;
                   }}
                   className="btn btn-primary"
