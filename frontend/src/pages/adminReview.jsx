@@ -322,7 +322,11 @@ export default function AdminReview() {
 
             <button
               className="btn btn-ghost"
-              onClick={() => (window.location.href = "/admin/all")}
+              onClick={() => {
+                    window.location.href = `${API}/auth/discord/login?redirect=${encodeURIComponent(
+                      "/wl/admin/all"
+                    )}`;
+                  }}
             >
               Ver todas las WL
             </button>

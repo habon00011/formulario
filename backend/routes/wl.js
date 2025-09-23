@@ -78,6 +78,29 @@ router.post('/submit', async (req, res) => {
   try {
     const p = req.body;
 
+    if (!p.captchaToken) {
+      return res.status(400).json({ error: 'CAPTCHA_REQUERIDO' });
+    }
+
+    const verifyUrl = `https://www.google.com/recaptcha/api/siteverify`;
+    const secretKey = process.env.RECAPTCHA_SECRET; // en tu .env
+
+    const captchaRes = await fetch(verifyUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        secret: secretKey,
+        response: p.captchaToken,
+        remoteip: req.ip, // opcional
+      }),
+    });
+
+    const captchaData = await captchaRes.json();
+
+    if (!captchaData.success) {
+      return res.status(400).json({ error: 'CAPTCHA_INVALIDO' });
+    }
+
     const reqd = [
       'discord_id','discord_username',
       'edad_ooc','steam_link',

@@ -52,6 +52,13 @@ body {
   color: var(--muted);
   margin: 0 0 24px;
 }
+.footer{
+  color: var(--muted);
+  margin: 0 0 24px;
+  text-align: center;
+  font-weight: 400;
+  font-size: clamp(6px, 2vw, 12px);
+}
 
 /* ---------- Tarjetas / secciones ---------- */
 .card{
@@ -265,6 +272,22 @@ html, body, #root {
   background: #4752c4;
 }
 
+.captcha-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.captcha-modal {
+  background: #1e1e2f;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 0 20px rgba(0,0,0,0.4);
+}
 
 
 

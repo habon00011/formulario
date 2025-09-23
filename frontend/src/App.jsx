@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { submitWL } from "./lib/api";
 import "./App.css";
+import ReCAPTCHA from "react-google-recaptcha";
 
 const API = import.meta.env.VITE_API_URL;
 const LOGIN_URL = `${API}/auth/discord/login?redirect=${encodeURIComponent(
@@ -61,6 +62,10 @@ export default function App() {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
 
+  // ReCAPTCHA
+  const [showCaptcha, setShowCaptcha] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState(null);
+
   const [form, setForm] = useState({
     discord_id: "",
     discord_username: "",
@@ -101,6 +106,21 @@ export default function App() {
       })
       .catch(() => {});
   }, []);
+
+  //ReCAPTCHA
+  useEffect(() => {
+  if (showCaptcha) {
+    document.body.style.overflow = "hidden"; // desactiva scroll
+  } else {
+    document.body.style.overflow = "auto";   // vuelve a activar scroll
+  }
+
+  // Limpieza por si acaso
+  return () => {
+    document.body.style.overflow = "auto";
+  };
+}, [showCaptcha]);
+
 
   const update = (k) => (e) => {
     const value = e.target.value;
@@ -172,71 +192,28 @@ export default function App() {
       return;
     }
 
+    // ReCAPTCHA
+    setShowCaptcha(true);
+  };
+
+  const onCaptchaChange = async (token) => {
+    if (!token) return;
+
     try {
       setLoading(true);
+      const data = await submitWL({ ...form, captchaToken: token });
 
-      const data = await submitWL(form);
-
-      // Error si has superado el cooldown(Los intentos)
-
-      if (data?.error === "LIMITE_INTENTOS") {
-        setErr("Has alcanzado el límite de 3 intentos. Contacta con el staff.");
-        setLoading(false);
-        scrollTop();
+      if (data?.error) {
+        setErr(data.error);
         return;
       }
-
-      if (data?.error === "COOLDOWN_ACTIVO") {
-        const until = data.until ? new Date(data.until) : null;
-        setErr(
-          `Has alcanzado el límite de intentos. ${
-            until
-              ? `Podrás volver a intentarlo el ${until.toLocaleString()}.`
-              : ""
-          }`
-        );
-        setLoading(false);
-        scrollTop();
-        return;
-      }
-
-      // Error si no estas en el discord
-      if (data?.error === "NO_GUILD_MEMBER") {
-        setErr(
-          <div className="discord-error">
-            <strong> No estás en el Discord</strong>
-            <p>Para poder enviar tu Whitelist debes unirte al servidor.</p>
-            <a
-              href={data?.invite}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="discord-join-btn"
-            >
-              👉 Unirme al Discord
-            </a>
-          </div>
-        );
-        setLoading(false);
-        scrollTop();
-        return;
-      }
-
-      if (data?.error === "YA_ENVIADA") {
-        setErr("Ya has enviado una Whitelist. Debes esperar a que sea revisada antes de poder enviar otra.");
-        setLoading(false);
-        scrollTop();
-        return;
-      }
-
-      if (data?.error) throw new Error(data.error);
 
       const newId = data?.id ?? data?.data?.id;
       if (!newId) throw new Error("Respuesta inválida del servidor");
 
       setOkId(newId);
       localStorage.removeItem("wl_draft");
-
-      // Limpia solo respuestas, mantiene identidad de Discord
+      // limpiar respuestas
       setForm((f) => ({
         ...f,
         edad_ooc: "",
@@ -257,14 +234,11 @@ export default function App() {
       }));
       setTouched({});
       setErrors({});
-      scrollTop();
-      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e) {
       setErr(e.message || "Error enviando WL");
-      scrollTop();
     } finally {
       setLoading(false);
-      scrollTop();
+      setShowCaptcha(false);
     }
   };
 
@@ -795,12 +769,28 @@ export default function App() {
             </div>
           </form>
 
-          <footer
-            className="sub"
-            style={{ textAlign: "center", marginTop: 26 }}
-          >
-            VilanovaCity • A tope para ser el mejor servidor de España 💜
-          </footer>
+          {/* Captcha */}
+          {showCaptcha && (
+            <div className="captcha-overlay">
+              <div className="captcha-modal">
+                <ReCAPTCHA
+                  sitekey="6Lc2AdMrAAAAAI2Qam8E8T1c5l9aKX6uwzoV0BIk"
+                  onChange={onCaptchaChange}
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="footer">
+            <p>
+              Al enviar este formulario confirmas que la información facilitada
+              es veraz y que aceptas las normas del servidor. Los datos
+              recogidos se usan únicamente para la gestión interna de la
+              whitelist y no serán compartidos con terceros. VilanovaCity es un
+              servidor independiente basado en FiveM y no está afiliado a
+              Rockstar Games ni a Take-Two Interactive.
+            </p>
+          </div>
         </div>
       </div>
     </>
