@@ -1,5 +1,8 @@
 // services/discordBot.js
 const { Client, GatewayIntentBits, Partials } = require('discord.js');
+const { updatePendingMessage, init } = require("./wlStats");
+
+
 
 const TOKEN = process.env.DISCORD_BOT_TOKEN;
 const GUILD_ID = process.env.DISCORD_GUILD_ID;
@@ -18,10 +21,16 @@ const client = new Client({
 });
 
 let ready = false;
-client.once('ready', () => {
+client.once("ready", async () => {
   ready = true;
-  console.log('[bot] listo');
+  console.log("[bot] listo");
+
+  init(client); // 👉 pasamos el client aquí
+
+  await updatePendingMessage();
+  setInterval(updatePendingMessage, 60 * 1000); // cada 1 min para pruebas
 });
+
 if (!client.isReady?.()) client.login(TOKEN);
 
 /* ---------- helpers de roles ---------- */

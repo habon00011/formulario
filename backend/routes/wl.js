@@ -5,6 +5,8 @@ const router = express.Router();
 const { pool } = require('../db');
 const GUILD_ID = process.env.DISCORD_GUILD_ID;
 
+const { notifyNewWhitelist } = require("../services/wlStats");
+
 // --- Bot de Discord: roles y anuncios ---
 const { client, setSuspensionRole, setApprovedRole, sendResultMessage } = require('../services/discordBot');
 
@@ -210,6 +212,8 @@ if (pend.length > 0) {
     );
 
     const id = ins.rows[0].id;
+
+    await notifyNewWhitelist(id, p.discord_username, p.discord_id);
 
     await pool.query(
       `INSERT INTO public.wl_logs (solicitud_id, staff_id, accion, motivo, meta)

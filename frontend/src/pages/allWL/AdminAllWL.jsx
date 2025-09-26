@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 import "../adminReview.css"; // puedes usar el mismo css del panel de corrección
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:4000";
@@ -141,6 +143,16 @@ export default function AdminAllWL() {
       <div className="container-vila admin-wide">
         <header className="admin-header">
           <h1 className="h1">Todas las Whitelist</h1>
+          
+          <button
+            className="btn btn-ghost"
+            onClick={() => {
+              window.location.href = "/wl/admin";
+            }}
+          >
+            Panel Admin
+          </button>
+
         </header>
 
         <div className="card section admin-grid">

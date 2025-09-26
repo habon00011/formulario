@@ -13,22 +13,22 @@ const RULES = {
   edad_ooc: (v) => req(v) || numRange(v, 18, 80, "Edad inválida (18–80)"),
   steam_link: (v) => req(v) || urlSteam(v),
 
-  que_es_rp: (v) => len(v, 30, 600, "Explica en 30–600 caracteres"),
-  uso_me_do: (v) => len(v, 40, 400, "Explica en 40–400 caracteres"),
-  fair_play: (v) => len(v, 30, 600, "Explica en 30–600 caracteres"),
-  pg_y_mg: (v) => len(v, 30, 600, "Explica en 30–600 caracteres"),
+  que_es_rp: (v) => len(v, 30, 120, "Explica en 30–120 caracteres"),
+  uso_me_do: (v) => len(v, 40, 250, "Explica en 40–250 caracteres"),
+  fair_play: (v) => len(v, 30, 100, "Explica en 30–100 caracteres"),
+  pg_y_mg: (v) => len(v, 30, 185, "Explica en 30–185 caracteres"),
 
   como_robarias_base_militar: (v) =>
-    len(v, 40, 600, "Detalla en 40–600 caracteres"),
-  caso_pinchan_ruedas: (v) => len(v, 40, 600, "Detalla en 40–600 caracteres"),
+    len(v, 40, 150, "Detalla en 40–150 caracteres"),
+  caso_pinchan_ruedas: (v) => len(v, 40, 200, "Detalla en 40–200 caracteres"),
 
   rol_pensado: (v) => req(v),
   tiempo_roleando: (v) => len(v, 1, 60, "Indica un valor (1–60 caracteres)"),
   historia_personaje: (v) => len(v, 80, 1200, "Cuenta algo 80–1200 caracteres"),
 
-  reaccion_robo_policia: (v) => len(v, 40, 600, "Detalla en 40–600"),
-  que_harias_vdm: (v) => len(v, 40, 600, "Detalla en 40–600"),
-  que_harias_desconecta_secuestro: (v) => len(v, 40, 600, "Detalla en 40–600"),
+  reaccion_robo_policia: (v) => len(v, 40, 200, "Detalla en 40–200"),
+  que_harias_vdm: (v) => len(v, 40, 200, "Detalla en 40–200"),
+  que_harias_desconecta_secuestro: (v) => len(v, 40, 150, "Detalla en 40–150"),
   minimo_policias_flecca: (v) =>
     /^\d{1,2}$/.test(String(v).trim()) ? "" : "Número válido (0–99)",
 };
@@ -171,6 +171,9 @@ export default function App() {
       return;
     }
 
+      scrollTop();
+
+
     // ✅ VALIDACIÓN NUEVA
     const nextErrors = {};
     Object.keys(RULES).forEach((k) => {
@@ -203,10 +206,56 @@ export default function App() {
       setLoading(true);
       const data = await submitWL({ ...form, captchaToken: token });
 
-      if (data?.error) {
-        setErr(data.error);
+      if (data?.error === "LIMITE_INTENTOS") {
+        setErr("Has alcanzado el límite de 3 intentos. Contacta con el staff.");
+        setLoading(false);
+        scrollTop();
         return;
       }
+
+      if (data?.error === "COOLDOWN_ACTIVO") {
+        const until = data.until ? new Date(data.until) : null;
+        setErr(
+          `Has alcanzado el límite de intentos. ${
+            until
+              ? `Podrás volver a intentarlo el ${until.toLocaleString()}.`
+              : ""
+          }`
+        );
+        setLoading(false);
+        scrollTop();
+        return;
+      }
+
+      // Error si no estas en el discord
+      if (data?.error === "NO_GUILD_MEMBER") {
+        setErr(
+          <div className="discord-error">
+            <strong> No estás en el Discord</strong>
+            <p>Para poder enviar tu Whitelist debes unirte al servidor.</p>
+            <a
+              href={data?.invite}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="discord-join-btn"
+            >
+              👉 Unirme al Discord
+            </a>
+          </div>
+        );
+        setLoading(false);
+        scrollTop();
+        return;
+      }
+
+      if (data?.error === "YA_ENVIADA") {
+        setErr("Ya has enviado una Whitelist. Debes esperar a que sea revisada antes de poder enviar otra.");
+        setLoading(false);
+        scrollTop();
+        return;
+      }
+
+      
 
       const newId = data?.id ?? data?.data?.id;
       if (!newId) throw new Error("Respuesta inválida del servidor");
@@ -509,7 +558,7 @@ export default function App() {
             <div className="card section">
               <h2>Teoría básica</h2>
 
-              <Counter value={form.que_es_rp} max={600}>
+              <Counter value={form.que_es_rp} max={120}>
                 <Field
                   name="que_es_rp"
                   label="¿Qué es el rol (RP)?"
@@ -525,7 +574,7 @@ export default function App() {
                 </Field>
               </Counter>
 
-              <Counter value={form.uso_me_do} max={400}>
+              <Counter value={form.uso_me_do} max={250}>
                 <Field
                   name="uso_me_do"
                   label="¿Para qué sirve el /do y /me? Explícanos su correcto uso."
@@ -546,7 +595,7 @@ export default function App() {
               </Counter>
 
               <div className="grid-2">
-                <Counter value={form.fair_play} max={600}>
+                <Counter value={form.fair_play} max={100}>
                   <Field
                     name="fair_play"
                     label="¿Qué es Fair-play?"
@@ -562,7 +611,7 @@ export default function App() {
                   </Field>
                 </Counter>
 
-                <Counter value={form.pg_y_mg} max={600}>
+                <Counter value={form.pg_y_mg} max={185}>
                   <Field
                     name="pg_y_mg"
                     label="¿Qué es PG y MG?"
@@ -584,7 +633,7 @@ export default function App() {
             <div className="card section">
               <h2>Supuestos de rol</h2>
 
-              <Counter value={form.como_robarias_base_militar} max={600}>
+              <Counter value={form.como_robarias_base_militar} max={150}>
                 <Field
                   name="como_robarias_base_militar"
                   label="¿Cómo robarías las armas de la base militar?"
@@ -608,7 +657,7 @@ export default function App() {
                 decides mandar un /report y después comienzas a dispararle.
                 ¿Cuáles son los errores de rol que se cometen en esta situación?
               </p>
-              <Counter value={form.caso_pinchan_ruedas} max={600}>
+              <Counter value={form.caso_pinchan_ruedas} max={200}>
                 <Field
                   name="caso_pinchan_ruedas"
                   label="Tu respuesta aqui"
@@ -626,7 +675,7 @@ export default function App() {
                 </Field>
               </Counter>
 
-              <Counter value={form.reaccion_robo_policia} max={600}>
+              <Counter value={form.reaccion_robo_policia} max={200}>
                 <Field
                   name="reaccion_robo_policia"
                   label="Estás en medio de un robo y llega la policía antes de lo esperado. ¿Cómo reaccionarías para mantener el rol realista?"
@@ -644,7 +693,7 @@ export default function App() {
                 </Field>
               </Counter>
 
-              <Counter value={form.que_harias_vdm} max={600}>
+              <Counter value={form.que_harias_vdm} max={200}>
                 <Field
                   name="que_harias_vdm"
                   label="Un jugador te atropella sin motivo (VDM). ¿Qué harías dentro del rol y después fuera de rol?"
@@ -659,7 +708,7 @@ export default function App() {
                 </Field>
               </Counter>
 
-              <Counter value={form.que_harias_desconecta_secuestro} max={600}>
+              <Counter value={form.que_harias_desconecta_secuestro} max={150}>
                 <Field
                   name="que_harias_desconecta_secuestro"
                   label="Estás secuestrando a alguien y de repente se desconecta. ¿Qué harías?"
@@ -758,6 +807,7 @@ export default function App() {
                 className="btn btn-primary"
               >
                 {loading ? "Enviando…" : "Enviar solicitud"}
+            
               </button>
               <button
                 type="button"

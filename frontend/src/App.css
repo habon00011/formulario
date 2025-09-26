@@ -108,6 +108,7 @@ body {
   color: var(--title);
   background: rgba(255,255,255,.08);
   border: 1px solid var(--stroke);
+  margin-left: 6px;
 }
 .btn-ghost:hover{ background: rgba(255,255,255,.12); }
 
