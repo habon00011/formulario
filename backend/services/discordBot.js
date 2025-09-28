@@ -1,8 +1,6 @@
 // services/discordBot.js
-const { Client, GatewayIntentBits, Partials } = require('discord.js');
+const { Client, GatewayIntentBits, Partials } = require("discord.js");
 const { updatePendingMessage, init } = require("./wlStats");
-
-
 
 const TOKEN = process.env.DISCORD_BOT_TOKEN;
 const GUILD_ID = process.env.DISCORD_GUILD_ID;
@@ -47,7 +45,7 @@ async function setApprovedRole(userId) {
     // Añade “WL aprobada”
     if (ROLE_WL_OK) await m.roles.add(ROLE_WL_OK).catch(() => {});
   } catch (e) {
-    console.error('[discordBot] setApprovedRole error', e);
+    console.error("[discordBot] setApprovedRole error", e);
   }
 }
 
@@ -70,7 +68,7 @@ async function setSuspensionRole(userId, intentoNum /* 1..3 */) {
     const target = map[intentoNum] || ROLE_SUSP3;
     if (target) await m.roles.add(target).catch(() => {});
   } catch (e) {
-    console.error('[discordBot] setSuspensionRole error', e);
+    console.error("[discordBot] setSuspensionRole error", e);
   }
 }
 
@@ -84,7 +82,7 @@ async function sendResultMessage({
   approved,
   attemptsUsed = 0,
   triesDone,
-  rejectReason, // motivo de rechazo opcional (p.ej. "Horas de FiveM insuficientes" | "Steam no público" | "Respuestas incorrectas")
+  rejectReasons = [], // motivo de rechazo opcional (p.ej. "Horas de FiveM insuficientes" | "Steam no público" | "Respuestas incorrectas")
 }) {
   if (!ready) return;
   try {
@@ -93,13 +91,12 @@ async function sendResultMessage({
       (await client.channels.fetch(RESULT_CHANNEL_ID));
 
     const used = Math.min(
-  MAX_ATTEMPTS,
-  Math.max(0, Number(attemptsUsed ?? triesDone ?? 0))
-);
+      MAX_ATTEMPTS,
+      Math.max(0, Number(attemptsUsed ?? triesDone ?? 0))
+    );
 
-// Siempre calcula en base al máximo
-const left = Math.max(0, MAX_ATTEMPTS - used);
-
+    // Siempre calcula en base al máximo
+    const left = Math.max(0, MAX_ATTEMPTS - used);
 
     let content;
     if (approved) {
@@ -108,8 +105,8 @@ const left = Math.max(0, MAX_ATTEMPTS - used);
     } else {
       // ❌ Rechazado
       content = `❌ Has suspendido la Whitelist <@${userId}> — Intentos restantes: \`${left}\``;
-      if (rejectReason) {
-        content += ` — Motivo: ${rejectReason}`;
+      if (rejectReasons && rejectReasons.length > 0) {
+        content += `\n**Motivos:** ` + rejectReasons.map((r) => `• ${r}`).join(" ");
       }
     }
 
@@ -119,8 +116,13 @@ const left = Math.max(0, MAX_ATTEMPTS - used);
       allowedMentions: { users: [userId] },
     });
   } catch (e) {
-    console.error('[discordBot] sendResultMessage error', e);
+    console.error("[discordBot] sendResultMessage error", e);
   }
 }
 
-module.exports = { client, setSuspensionRole, setApprovedRole, sendResultMessage };
+module.exports = {
+  client,
+  setSuspensionRole,
+  setApprovedRole,
+  sendResultMessage,
+};

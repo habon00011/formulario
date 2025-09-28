@@ -344,12 +344,13 @@ router.post('/review/:id', requireStaff, async (req, res) => {
   private: 'Steam no público',
 };
 
-let rejectReason = null;
+let rejectReasons = [];
 if (!aprobado) {
   if (steam_check && steam_check !== 'ok') {
-    rejectReason = STEAM_REASON[steam_check] || 'Steam no verificado';
-  } else if (!allCorrect) {
-    rejectReason = 'Respuestas incorrectas';
+    rejectReasons.push(STEAM_REASON[steam_check] || 'Steam no verificado');
+  }
+  if (!allCorrect) {
+    rejectReasons.push('Respuestas incorrectas');
   }
 }
 
@@ -428,7 +429,7 @@ if (!aprobado) {
       username,
       reviewerId,
       attemptsUsed: intentosClamped,
-      rejectReason,
+      rejectReasons,
     });
   } catch (e) {
     console.error('[discordBot] error', e);

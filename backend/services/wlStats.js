@@ -12,7 +12,7 @@ function init(c) {
   clientRef = c;
 
   // Pendientes cada 5 min (ahora cada 1 min para test)
-  setInterval(updatePendingMessage, 1 * 60 * 1000);
+  setInterval(updatePendingMessage, 5 * 60 * 1000);
 
   // Ranking cada domingo a las 11:00
   scheduleWeeklyRanking();
@@ -48,6 +48,7 @@ async function updatePendingMessage() {
     // Buscar la más antigua
     let tiempoTexto = "✅ Todas corregidas.";
     let segundos = 0;
+
 
     if (pendientes > 0) {
       const { rows: oldest } = await pool.query(

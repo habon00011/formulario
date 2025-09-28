@@ -290,5 +290,63 @@ html, body, #root {
   box-shadow: 0 0 20px rgba(0,0,0,0.4);
 }
 
+/*========== TICKET HELP ==========*/
+.ticket-help {
+  text-align: center;
+  margin-top: 14px;
+}
+
+.ticket-help p {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.ticket-link {
+  font-weight: 700;
+  font-size: 14px;
+  color: #7c5cff;
+  position: relative;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.ticket-link::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #7c5cff, #26d0ce);
+  transition: width 0.3s ease;
+}
+
+.ticket-link:hover::after {
+  width: 100%;
+}
+
+.support-links {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+  gap: 28px;
+}
+
+.support-links .icon {
+  font-size: 34px;
+  margin: 0 22px;
+  color: #a78bfa; /* morado base */
+  transition: transform 0.3s ease, text-shadow 0.3s ease;
+}
+
+.support-links .icon:hover {
+  transform: scale(1.2);
+  text-shadow: 0 0 10px #a78bfa, 0 0 20px #7c3aed;
+}
+
+
+
+
+
 
 
