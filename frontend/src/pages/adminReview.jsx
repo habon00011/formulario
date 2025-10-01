@@ -10,7 +10,7 @@ const STAFF_ALLOW = (import.meta.env.VITE_STAFF_IDS || "")
 
 // Ruta de login (con redirect a /admin)
 const LOGIN_URL = `${API}/auth/discord/login?redirect=${encodeURIComponent(
-  "/admin"
+  "/wl/admin"
 )}`;
 
 const QUESTIONS = [

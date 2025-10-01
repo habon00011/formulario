@@ -1,17 +1,29 @@
 // services/wlStats.js
 const { pool } = require("../db");
 
-const CHANNEL_ID = process.env.WL_CHANNEL_ID; // canal donde se publica
-const ROLE_ID = process.env.WL_ROLE_ID; // rol a etiquetar (Encargados)
+const CHANNEL_ID = process.env.WL_CHANNEL_ID; // canal donde se publica el estado
+const ROLE_ID = process.env.WL_ROLE_ID;       // rol a etiquetar (Encargados)
 const LOG_CHANNEL_ID = process.env.WL_LOG_CHANNEL_ID; // canal de logs Whitelist enviadas
 
-let messageId = null;
-let clientRef = null; // referencia al bot
+let messageId = null;   // ID del mensaje principal (se edita)
+let clientRef = null;   // referencia al bot
+
+// Aviso actual independiente del mensaje principal
+// level: 'warn' (4h), 'urgent' (8h), 'critical' (24h)
+let currentAlert = { level: null, id: null };
+
+// Determina el nivel según segundos de espera
+function getLevelBySeconds(s) {
+  if (s > 24 * 3600) return 'critical';
+  if (s >  8 * 3600) return 'urgent';
+  if (s >  4 * 3600) return 'warn';
+  return null;
+}
 
 function init(c) {
   clientRef = c;
 
-  // Pendientes cada 5 min (ahora cada 1 min para test)
+  // Pendientes cada 5 min
   setInterval(updatePendingMessage, 5 * 60 * 1000);
 
   // Ranking cada domingo a las 11:00
@@ -49,7 +61,6 @@ async function updatePendingMessage() {
     let tiempoTexto = "✅ Todas corregidas.";
     let segundos = 0;
 
-
     if (pendientes > 0) {
       const { rows: oldest } = await pool.query(
         `SELECT EXTRACT(EPOCH FROM (NOW() - created_at))::int AS segundos
@@ -74,35 +85,68 @@ async function updatePendingMessage() {
       minute: "2-digit",
     });
 
-    let content = `# 📋 **Whitelist pendientes:** \`${pendientes}\`\n` + `${tiempoTexto}\n\n`;
-    // 🚨 Avisos en horarios permitidos (08:00–01:00)
-    const horaActual = new Date().getHours();
-    const horarioPermitido = horaActual >= 8 || horaActual < 1;
-
-    if (pendientes > 0 && ROLE_ID && horarioPermitido) {
-      if (segundos > 4 * 3600 && segundos <= 8 * 3600) {
-        content += `\n🟡 **Aviso** <@&${ROLE_ID}> — Hay **Whitelist pendientes** desde hace más de **4 horas**. ¡Revisadlas cuanto antes!`;
-      }
-      if (segundos > 8 * 3600 && segundos <= 24 * 3600) {
-        content += `\n🔴 **Urgente** <@&${ROLE_ID}> — Hay **Whitelist pendientes** desde hace más de **8 horas**. ⚡ ¡Prioridad máxima!`;
-      }
-      if (segundos > 24 * 3600) {
-        content += `\n🚨 **CRÍTICO** <@&${ROLE_ID}> — ¡Existen **Whitelist pendientes** desde hace más de **24 horas**!`;
-      }
-
-      content += `\n\n-# (Última actualización: ${ultimaActualizacion})`;
-    }
+    // -------- Mensaje PRINCIPAL (se edita) SIN menciones --------
+    let content =
+      `# 📋 **Whitelist pendientes:** \`${pendientes}\`\n` +
+      `${tiempoTexto}\n\n` +
+      `-# (Última actualización: ${ultimaActualizacion})`;
 
     if (messageId) {
       const msg = await channel.messages.fetch(messageId).catch(() => null);
       if (msg) {
         await msg.edit(content);
-        return;
+      } else {
+        const sent = await channel.send(content);
+        messageId = sent.id;
       }
+    } else {
+      const sent = await channel.send(content);
+      messageId = sent.id;
     }
 
-    const sent = await channel.send(content);
-    messageId = sent.id;
+    // --------- AVISOS ESCALONADOS (mensaje NUEVO + borrar el anterior) ---------
+    // Horario permitido para avisos (08:00–01:00)
+    const horaActual = new Date().getHours();
+    const horarioPermitido = horaActual >= 8 || horaActual < 1;
+
+    // Nivel deseado según antigüedad (solo si hay pendientes)
+    const desiredLevel = (pendientes > 0) ? getLevelBySeconds(segundos) : null;
+
+    // Si no hay nivel/rol/horario → borrar aviso existente si lo hay y salir
+    if (!desiredLevel || !ROLE_ID || !horarioPermitido) {
+      if (currentAlert.id) {
+        const old = await channel.messages.fetch(currentAlert.id).catch(() => null);
+        if (old) await old.delete().catch(() => {});
+        currentAlert = { level: null, id: null };
+      }
+      return;
+    }
+
+    // Si el nivel es el mismo que el actual → no reenviar ni hacer nada
+    if (currentAlert.level && currentAlert.level === desiredLevel) {
+      return;
+    }
+
+    // Si hay aviso anterior y cambia el nivel → borrar el anterior
+    if (currentAlert.id) {
+      const old = await channel.messages.fetch(currentAlert.id).catch(() => null);
+      if (old) await old.delete().catch(() => {});
+      currentAlert = { level: null, id: null };
+    }
+
+    // Enviar el nuevo aviso según el nivel (MENSAJE NUEVO → sí notifica)
+    let aviso = "";
+    if (desiredLevel === 'warn') {
+      aviso = `🟡 **Aviso** <@&${ROLE_ID}> — Hay **Whitelist pendientes** desde hace más de **4 horas**. ¡Revisadlas cuanto antes!`;
+    } else if (desiredLevel === 'urgent') {
+      aviso = `🔴 **Urgente** <@&${ROLE_ID}> — Hay **Whitelist pendientes** desde hace más de **8 horas**. ⚡ ¡Prioridad máxima!`;
+    } else if (desiredLevel === 'critical') {
+      aviso = `🚨 **CRÍTICO** <@&${ROLE_ID}> — ¡Existen **Whitelist pendientes** desde hace más de **24 horas**!`;
+    }
+
+    const sentAlert = await channel.send(aviso);
+    currentAlert = { level: desiredLevel, id: sentAlert.id };
+
   } catch (err) {
     console.error("[wlStats] Error actualizando pendientes:", err);
   }
@@ -133,13 +177,11 @@ async function postWeeklyRanking() {
     const channel = await clientRef.channels.fetch(CHANNEL_ID);
     if (!channel) return;
 
-    const content = `🏆 **Ranking semanal de corrección WL** 🏆\n\n${formatRanking(
-      rows
-    )}`;
+    const content = `🏆 **Ranking semanal de corrección WL** 🏆\n\n${formatRanking(rows)}`;
 
     const sent = await channel.send(content);
 
-    // ⏰ Borrar después de 24h (lunes 11:00 si se publica el domingo 11:00)
+    // ⏰ Borrar después de 24h
     setTimeout(async () => {
       try {
         await sent.delete().catch(() => {});

@@ -143,7 +143,7 @@ export default function AdminAllWL() {
       <div className="container-vila admin-wide">
         <header className="admin-header">
           <h1 className="h1">Todas las Whitelist</h1>
-          
+
           <button
             className="btn btn-ghost"
             onClick={() => {
@@ -152,7 +152,6 @@ export default function AdminAllWL() {
           >
             Panel Admin
           </button>
-
         </header>
 
         <div className="card section admin-grid">
@@ -197,6 +196,7 @@ export default function AdminAllWL() {
           </div>
 
           {/* Columna derecha */}
+
           <div className="admin-right">
             {!selected ? (
               <div className="sub">Selecciona una WL a la izquierda.</div>
@@ -243,6 +243,24 @@ export default function AdminAllWL() {
                   </div>
                 </div>
 
+                {/* Staff que corrigió */}
+                {selected?.reviewed_by && (
+                  <div className="form-row form-row--link">
+                    <div className="form-row__label">Corregida por:</div>
+                    <div className="form-row__content">
+                      <a
+                        href={`https://discord.com/users/${selected.reviewed_by}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="chip-link"
+                        title="Abrir perfil de Discord"
+                      >
+                        {selected.reviewed_by}
+                      </a>
+                    </div>
+                  </div>
+                )}
+
                 {/* Verificación de Steam */}
                 <div className="form-row">
                   <div className="form-row__label">Verificación:</div>
@@ -279,6 +297,32 @@ export default function AdminAllWL() {
                         );
 
                       return <span className="muted">(sin verificar)</span>;
+                    })()}
+                  </div>
+                </div>
+
+                {/* Notas internas */}
+                <div className="section admin-notes">
+                  <h3>Notas internas (solo staff)</h3>
+                  <div className="answer-box">
+                    {(() => {
+                      try {
+                        if (!selected.notas_internas)
+                          return <i className="answer-empty">(ninguna)</i>;
+                        const parsed =
+                          typeof selected.notas_internas === "string"
+                            ? JSON.parse(selected.notas_internas)
+                            : selected.notas_internas;
+                        return parsed.notas && parsed.notas.trim() !== "" ? (
+                          parsed.notas
+                        ) : (
+                          <i className="answer-empty">(ninguna)</i>
+                        );
+                      } catch {
+                        return (
+                          <i className="answer-empty">(error al leer notas)</i>
+                        );
+                      }
                     })()}
                   </div>
                 </div>
@@ -327,32 +371,6 @@ export default function AdminAllWL() {
                       </div>
                     );
                   })}
-                </div>
-
-                {/* Notas internas */}
-                <div className="section admin-notes">
-                  <h3>Notas internas (solo staff)</h3>
-                  <div className="answer-box">
-                    {(() => {
-                      try {
-                        if (!selected.notas_internas)
-                          return <i className="answer-empty">(ninguna)</i>;
-                        const parsed =
-                          typeof selected.notas_internas === "string"
-                            ? JSON.parse(selected.notas_internas)
-                            : selected.notas_internas;
-                        return parsed.notas && parsed.notas.trim() !== "" ? (
-                          parsed.notas
-                        ) : (
-                          <i className="answer-empty">(ninguna)</i>
-                        );
-                      } catch {
-                        return (
-                          <i className="answer-empty">(error al leer notas)</i>
-                        );
-                      }
-                    })()}
-                  </div>
                 </div>
               </div>
             )}
